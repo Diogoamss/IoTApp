@@ -62,13 +62,55 @@ const Gauges = ({ temp, hum }) => {
 }
 
 const styles = StyleSheet.create({
-    row: { flexDirection: 'row', justifyContent: 'space-between',
-        width: '100%',
-    },
-    gaugeBox: { backgroundColor: '#1E1E1E', padding: 15,
-        borderRadius: 20, alignItems: 'center', width: '48%',
-    },
-    label: { color: '#AAA', marginTop: 10,
-        fontSize: 14,
-    },
+  card: {
+    backgroundColor: '#1e1e1e',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2A2A4A',
+  },
+  cardTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 20,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  gaugeBox: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  divider: {
+    width: 1,
+    height: 120,
+    backgroundColor: '#2A2A4A',
+  },
+  gaugeTitle: {
+    color: '#8888AA',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  topicRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 4,
+  },
+  topicLabel: {
+    color: '#444466',
+    fontSize: 11,
+  },
+  topicValue: {
+    color: '#00C896',
+    fontSize: 11,
+    fontFamily: 'monospace',
+  },
 });
+
+export default Gauges;

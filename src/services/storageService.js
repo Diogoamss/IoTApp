@@ -43,7 +43,8 @@ export const loadAllStates = async () => {
     const light = await loadState(KEYS.LIGHT, false)
     const temp = await loadState(KEYS.TEMP, 0)
     const hum = await loadState(KEYS.HUM, 0)
-    const lastSeen = await loadState(KEYS.HISTORY, [])
+    const lastSeen = await loadState(KEYS.LAST_SEEN, null)
+    const history = await loadState(KEYS.HISTORY, [])
     return { light, temp, hum, lastSeen, history }
 }
 
