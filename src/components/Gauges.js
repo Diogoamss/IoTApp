@@ -2,33 +2,60 @@ import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import CircularProgress from 'react-native-circular-progress-indicator';
 
-export default function Gauges({ temp, hum }) {
-    return (
-        <View style={styles.row}>
-            <View style={styles.gaugeBox}>
-                <CircularProgress
-                    value={temp}
-                    radius={60}
-                    title={'°C'}
-                    titleColor={'#FFF'}
-                    activeStrokeColor={'#E74C3C'}
-                    inActiveStrokeColor={'#2C3E50'}
-                    textColor={'#FFF'}
-                />
-                <Text style={styles.label}>Temperatura</Text>
-            </View>
+const GaugeBox = ({ value, maxValue, title, unit, color, topic }) => (
+    <View style={styles.gaugeBox}>
+        <Text style={styles.gaugeTitle}>{title}</Text>
+        <CircularProgress 
+            value={isNaN(value) ? 0 : value}
+            maxValue={maxValue}
+            radius={52}
+            title={unit}
+            titleColor='#fff'
+            titleStyle={{ fontWeight: '700', fontSize: 13}}
+            activeStrokeColor={color}
+            activeStrokeSecondaryColor={color + '66'}
+            inActiveStrokeColor='#1e1e38'
+            inActiveStrokeWidth={8}
+            activeStrokeWidth={8}
+            progressValueColor='#fff'
+            progressValueStyle={{ fontWeight: '800', fontSize: 22}}
+            valueSuffix=''
+            duration={800}
+        />
 
-            <View style={styles.gaugeBox}>
-                <CircularProgress
-                    value={hum}
-                    radius={60}
-                    title={'%'}
-                    titleColor={'#FFF'}
-                    activeStrokeColor={'#3498DB'}
-                    inActiveStrokeColor={'#2C3E50'}
-                    textColor={'#FFF'}
+        <View style={styles.topicRow}>
+            <Text style={styles.topicLabel}>Tópico:</Text>
+            <Text style={styles.topicValue}>{topic}</Text>
+        </View>
+    </View>
+)
+
+const Gauges = ({ temp, hum }) => {
+    return (
+        <View style={styles.card}>
+            <Text style={styles.cardTitle}>Monitoramento de Sensores</Text>
+
+            <View style={styles.row}>
+                <GaugeBox 
+                    value={temp}
+                    maxValue={50}
+                    title="Temperatura"
+                    unit="°C"
+                    color="#E74C3C"
+                    topic="casa/temp"
                 />
-                <Text style={styles.label}>Umidade</Text>
+
+                <View style={styles.divider} />
+
+                <GaugeBox 
+                    value={hum}
+                    maxValue={100}
+                    title="Umidade"
+                    unit="%"
+                    color="#3498DB"
+                    topic="casa/umid"
+                />
+                
             </View>
         </View>
     );

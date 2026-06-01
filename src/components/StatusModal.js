@@ -1,7 +1,14 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Modal } from 'react-native';
+import {
+    Modal,
+    View,
+    Text,
+    TouchableOpacity,
+    StyleSheet,
+    ActivityIndicator,
+} from 'react-native'
 
-const StatusModal = ({ visible, onRetry, onLater }) => {
+const StatusModal = ({ visible, connecting, onRetry, onLater }) => {
     return (
         <Modal visible={visible} transparent animationType="fade">
             <View style={styles.modalContainer}>

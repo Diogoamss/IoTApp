@@ -2,9 +2,11 @@ import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
-export default function LightConnection({ isLightOn, onToggle }) {
+const LightConnection = ({ isLightOn, onToggle }) => {
     return (
         <View style={styles.card}>
+            <View style={styles.header}></View>
+
             <TouchableOpacity onPress={onToggle}>
                 <Icon
                     name={isLightOn ? 'lightbulb-on' : 'lightbulb-outline'}
