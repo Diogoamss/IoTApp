@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -7,11 +7,47 @@ import {
   StyleSheet,
   FlatList,
   Alert,
+  Dimensions,
+  ScrollView,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { LineChart } from 'react-native-chart-kit';
 import { clearHistory } from '../services/storageService';
 
+const screenWidth = Dimensions.get('window').width;
+const CHART_WIDTH = screenWidth - 64;
+
 const HistoryModal = ({ visible, history, lastSeen, onClose, onClear }) => {
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  const chartData = useMemo(() => {
+    if (history.length < 2) return null;
+
+    const reversed = [...history].reverse();
+    const labels = reversed.map((_, i) => {
+      if (reversed.length > 8 && i % Math.ceil(reversed.length / 6) !== 0) return '';
+      return reversed[i].time.split(', ')[1]?.split(':').slice(0, 2).join(':') || '';
+    });
+    const tempData = reversed.map((e) => e.temp);
+    const humData = reversed.map((e) => e.hum);
+
+    return { labels, tempData, humData };
+  }, [history]);
+
+  const stats = useMemo(() => {
+    if (history.length === 0) return null;
+    const temps = history.map((e) => e.temp);
+    const hums = history.map((e) => e.hum);
+    return {
+      tempMin: Math.min(...temps).toFixed(1),
+      tempMax: Math.max(...temps).toFixed(1),
+      tempAvg: (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1),
+      humMin: Math.min(...hums).toFixed(0),
+      humMax: Math.max(...hums).toFixed(0),
+      humAvg: (hums.reduce((a, b) => a + b, 0) / hums.length).toFixed(0),
+    };
+  }, [history]);
+
   const handleClear = () => {
     Alert.alert(
       'Limpar Histórico',
@@ -53,7 +89,6 @@ const HistoryModal = ({ visible, history, lastSeen, onClose, onClear }) => {
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <View style={styles.sheet}>
-          {/* Header */}
           <View style={styles.header}>
             <View>
               <Text style={styles.title}>Histórico de Estados</Text>
@@ -66,42 +101,174 @@ const HistoryModal = ({ visible, history, lastSeen, onClose, onClear }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Column headers */}
-          {history.length > 0 && (
-            <View style={styles.colHeader}>
-              <Text style={styles.colText}>Data / Luz</Text>
-              <Text style={styles.colText}>Temp / Umidade</Text>
-            </View>
-          )}
-
-          {/* List */}
-          {history.length === 0 ? (
-            <View style={styles.empty}>
-              <FontAwesome name="inbox" size={48} color="#555577" />
-              <Text style={styles.emptyText}>Nenhum registro salvo ainda.</Text>
-              <Text style={styles.emptyHint}>
-                Os dados são salvos automaticamente ao receber mensagens do ESP32.
+          <View style={styles.tabRow}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'dashboard' && styles.tabActive]}
+              onPress={() => setActiveTab('dashboard')}
+            >
+              <FontAwesome
+                name="bar-chart"
+                size={13}
+                color={activeTab === 'dashboard' ? '#00C896' : '#555577'}
+              />
+              <Text style={[styles.tabText, activeTab === 'dashboard' && styles.tabTextActive]}>
+                Dashboard
               </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={history}
-              keyExtractor={(_, i) => String(i)}
-              renderItem={renderItem}
-              style={styles.list}
-              showsVerticalScrollIndicator={false}
-            />
-          )}
-
-
-          {history.length > 0 && (
-            <TouchableOpacity style={styles.clearBtn} onPress={handleClear}>
-              <View style={styles.clearBtnContent}>
-                <FontAwesome name="trash" size={14} color="#CC4444" />
-                <Text style={styles.clearText}>Limpar Histórico</Text>
-              </View>
             </TouchableOpacity>
-          )}
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'list' && styles.tabActive]}
+              onPress={() => setActiveTab('list')}
+            >
+              <FontAwesome
+                name="list"
+                size={13}
+                color={activeTab === 'list' ? '#00C896' : '#555577'}
+              />
+              <Text style={[styles.tabText, activeTab === 'list' && styles.tabTextActive]}>
+                Registros
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            style={styles.scrollArea}
+            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled
+          >
+            {activeTab === 'dashboard' ? (
+              <View style={styles.dashboard}>
+                {history.length < 2 ? (
+                  <View style={styles.empty}>
+                    <FontAwesome name="bar-chart" size={48} color="#555577" />
+                    <Text style={styles.emptyText}>
+                      {history.length === 0
+                        ? 'Nenhum dado para exibir no gráfico.'
+                        : 'São necessários ao menos 2 registros para gerar o gráfico.'}
+                    </Text>
+                    <Text style={styles.emptyHint}>
+                      Os dados são salvos automaticamente ao receber mensagens do ESP32.
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.chartTitle}>Temperatura × Umidade</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <LineChart
+                        data={{
+                          labels: chartData.labels,
+                          datasets: [
+                            {
+                              data: chartData.tempData,
+                              color: (opacity = 1) => `rgba(231, 76, 60, ${opacity})`,
+                              strokeWidth: 2,
+                            },
+                            {
+                              data: chartData.humData,
+                              color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
+                              strokeWidth: 2,
+                            },
+                          ],
+                          legend: ['Temperatura (°C)', 'Umidade (%)'],
+                        }}
+                        width={Math.max(CHART_WIDTH, history.length * 50)}
+                        height={220}
+                        chartConfig={{
+                          backgroundColor: '#1e1e1e',
+                          backgroundGradientFrom: '#1e1e1e',
+                          backgroundGradientTo: '#16162a',
+                          decimalCount: 1,
+                          color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                          labelColor: (opacity = 1) => `rgba(136, 136, 170, ${opacity})`,
+                          propsForDots: { r: '3', strokeWidth: '1' },
+                          propsForBackgroundLines: {
+                            strokeDasharray: '3 3',
+                            stroke: 'rgba(255,255,255,0.05)',
+                          },
+                        }}
+                        bezier
+                        style={styles.chart}
+                      />
+                    </ScrollView>
+
+                    {stats && (
+                      <View style={styles.statsGrid}>
+                        <View style={styles.statCard}>
+                          <FontAwesome name="thermometer-half" size={14} color="#E74C3C" />
+                          <Text style={styles.statLabel}>Temperatura</Text>
+                          <View style={styles.statRow}>
+                            <View style={styles.statItem}>
+                              <Text style={[styles.statValue, { color: '#E74C3C' }]}>{stats.tempMin}°</Text>
+                              <Text style={styles.statSub}>Mín</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                              <Text style={[styles.statValue, { color: '#E74C3C' }]}>{stats.tempAvg}°</Text>
+                              <Text style={styles.statSub}>Média</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                              <Text style={[styles.statValue, { color: '#E74C3C' }]}>{stats.tempMax}°</Text>
+                              <Text style={styles.statSub}>Máx</Text>
+                            </View>
+                          </View>
+                        </View>
+                        <View style={styles.statCard}>
+                          <FontAwesome name="tint" size={14} color="#3498DB" />
+                          <Text style={styles.statLabel}>Umidade</Text>
+                          <View style={styles.statRow}>
+                            <View style={styles.statItem}>
+                              <Text style={[styles.statValue, { color: '#3498DB' }]}>{stats.humMin}%</Text>
+                              <Text style={styles.statSub}>Mín</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                              <Text style={[styles.statValue, { color: '#3498DB' }]}>{stats.humAvg}%</Text>
+                              <Text style={styles.statSub}>Média</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                              <Text style={[styles.statValue, { color: '#3498DB' }]}>{stats.humMax}%</Text>
+                              <Text style={styles.statSub}>Máx</Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
+            ) : (
+              <View>
+                {history.length > 0 && (
+                  <View style={styles.colHeader}>
+                    <Text style={styles.colText}>Data / Luz</Text>
+                    <Text style={styles.colText}>Temp / Umidade</Text>
+                  </View>
+                )}
+                {history.length === 0 ? (
+                  <View style={styles.empty}>
+                    <FontAwesome name="inbox" size={48} color="#555577" />
+                    <Text style={styles.emptyText}>Nenhum registro salvo ainda.</Text>
+                    <Text style={styles.emptyHint}>
+                      Os dados são salvos automaticamente ao receber mensagens do ESP32.
+                    </Text>
+                  </View>
+                ) : (
+                  <FlatList
+                    data={history}
+                    keyExtractor={(_, i) => String(i)}
+                    renderItem={renderItem}
+                    scrollEnabled={false}
+                    showsVerticalScrollIndicator={false}
+                  />
+                )}
+                {history.length > 0 && (
+                  <TouchableOpacity style={styles.clearBtn} onPress={handleClear}>
+                    <View style={styles.clearBtnContent}>
+                      <FontAwesome name="trash" size={14} color="#CC4444" />
+                      <Text style={styles.clearText}>Limpar Histórico</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -119,7 +286,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 24,
-    maxHeight: '80%',
+    maxHeight: '85%',
     borderWidth: 1,
     borderColor: '#2A2A4A',
   },
@@ -127,7 +294,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   title: {
     color: '#FFFFFF',
@@ -147,10 +314,82 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  closeText: {
-    color: '#8888AA',
+  tabRow: {
+    flexDirection: 'row',
+    backgroundColor: '#161616',
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 16,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  tabActive: {
+    backgroundColor: '#2A2A4A',
+  },
+  tabText: {
+    color: '#555577',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: '#00C896',
+  },
+  scrollArea: {
+    flexGrow: 0,
+  },
+  dashboard: {
+    gap: 16,
+  },
+  chartTitle: {
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  chart: {
+    borderRadius: 16,
+  },
+  statsGrid: {
+    gap: 12,
+  },
+  statCard: {
+    backgroundColor: '#161616',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#2A2A4A',
+  },
+  statLabel: {
+    color: '#8888AA',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 8,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  statSub: {
+    color: '#555577',
+    fontSize: 11,
+    fontWeight: '600',
   },
   colHeader: {
     flexDirection: 'row',
@@ -164,9 +403,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-  },
-  list: {
-    flexGrow: 0,
   },
   row: {
     flexDirection: 'row',
@@ -201,10 +437,6 @@ const styles = StyleSheet.create({
     gap: 16,
     alignItems: 'center',
   },
-  sensorVal: {
-    color: '#8888AA',
-    fontSize: 13,
-  },
   sensorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -223,13 +455,11 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     gap: 12,
   },
-  emptyIcon: {
-    marginBottom: 8,
-  },
   emptyText: {
     color: '#8888AA',
     fontSize: 15,
     fontWeight: '600',
+    textAlign: 'center',
   },
   emptyHint: {
     color: '#444466',
@@ -247,22 +477,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#3A1A1A',
   },
-
-  trashIcon: {
-    marginRight: 4,
-  },
   clearBtnContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     justifyContent: 'center',
   },
-
   clearText: {
     color: '#CC4444',
     fontWeight: '600',
     fontSize: 14,
-    marginLeft: 4,
   },
 });
 
